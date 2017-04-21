@@ -1,8 +1,11 @@
 package action_test
 
 import (
+	"flag"
+	"math/rand"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/innermond/printoo/printoo"
 	"github.com/innermond/printoo/printoo/action"
@@ -113,7 +116,7 @@ func TestAction_GetPerson(t *testing.T) {
 	}
 }
 
-func TestAction_AddExtraPhones(t *testing.T) {
+func TestAction_AddExtraPhone(t *testing.T) {
 	do := openAction(t)
 	tests := map[string][]string{
 		"1": {"0000000000", "6886856821", "0723158571"},
@@ -148,6 +151,84 @@ func TestAction_AddExtraPhones(t *testing.T) {
 	}
 }
 
+func TestAction_GetExtraPhones(t *testing.T) {
+	do := openAction(t)
+	ids := []string{"1", "2", "3"}
+	for _, sid := range ids {
+		t.Run(sid, func(t *testing.T) {
+			id, err := strconv.Atoi(sid)
+			if err != nil {
+				t.Fatalf("id %q %v", id, err)
+			}
+			phones, err := do.GetExtraPhones(id)
+			if err != nil {
+				t.Errorf("Get %v", err)
+			}
+			t.Logf("%T %v \n", phones, phones)
+		})
+	}
+}
+
+func TestAction_AddExtraEmail(t *testing.T) {
+	do := openAction(t)
+	uniq := rndstr(5)
+	tests := map[string][]string{
+		"1": {"a1@a.ro", "a2@a.ro", "a3@a.ro"},
+		"2": {"b1@a.ro", "b2@a.ro", "b3@a.ro"},
+		"3": {"c1@a.ro", "c2@a.ro", "c3@a.ro"},
+	}
+	for sid, pps := range tests {
+		t.Run(sid, func(t *testing.T) {
+			for _, pp := range pps {
+				pp = uniq + pp
+				ok := validation.IsEmail(pp)
+				if !ok {
+					t.Fatalf("%v", pp)
+				}
+				pid, err := strconv.Atoi(sid)
+				if err != nil {
+					t.Fatalf("toid: %v", err)
+				}
+				err = do.AddExtraEmail(pid, pp)
+				if err != nil {
+					t.Fatalf("add extra: %v", err)
+				}
+				t.Logf("pp %s", pp)
+				// delete inserted
+				t.Run(pp, func(t *testing.T) {
+					if *autodelete {
+						err = do.DeleteExtraEmail(pid, pp)
+						if err != nil {
+							t.Errorf("delete: %v", err)
+						}
+					}
+					t.Logf("did %s", pp)
+				})
+			}
+		})
+	}
+}
+
+func TestAction_GetExtraEmails(t *testing.T) {
+	do := openAction(t)
+	ids := []string{"1", "2", "3"}
+	for _, sid := range ids {
+		t.Run(sid, func(t *testing.T) {
+			id, err := strconv.Atoi(sid)
+			if err != nil {
+				t.Fatalf("id %q %v", id, err)
+			}
+			emails, err := do.GetExtraEmails(id)
+			if err != nil {
+				t.Errorf("Get %v", err)
+			}
+			t.Logf("%T %v \n", emails, emails)
+		})
+	}
+}
+
+var autodelete = flag.Bool("autodelete", true, "delete testing records")
+
 func openAction(t *testing.T) action.PersonManager {
 	db, err := printoo.Open("root:M0b1d1c3@tcp(:3306)/printoo")
 	if err != nil {
@@ -158,4 +239,14 @@ func openAction(t *testing.T) action.PersonManager {
 		t.Fatal("unexpected nil")
 	}
 	return do
+}
+
+func rndstr(n int) string {
+	rand.Seed(time.Now().UnixNano())
+	var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+	b := make([]rune, n)
+	for i := range b {
+		b[i] = letterRunes[rand.Intn(len(letterRunes))]
+	}
+	return string(b)
 }

@@ -25,3 +25,7 @@ func MinMax(min, max, val int, eq ...bool) bool {
 	}
 	return is
 }
+
+func IsEmail(e string) bool {
+	return strings.LastIndex(e, "@") != -1
+}

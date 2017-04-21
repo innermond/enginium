@@ -9,8 +9,21 @@ type PersonManager interface {
 	EditPerson(printoo.Person) error
 	DeletePerson(printoo.Person) error
 	GetPerson(int) (printoo.Person, error)
+
+	ExtraPhoneManager
+	ExtraEmailManager
+}
+
+type ExtraPhoneManager interface {
 	AddExtraPhone(int, string) error
 	DeleteExtraPhone(int, string) error
+	GetExtraPhones(int) ([]printoo.ExtraPhone, error)
+}
+
+type ExtraEmailManager interface {
+	AddExtraEmail(int, string) error
+	DeleteExtraEmail(int, string) error
+	GetExtraEmails(int) ([]printoo.ExtraEmail, error)
 }
 
 func NewHave(db *printoo.DB) PersonManager {
@@ -125,4 +138,91 @@ func (my *personManager) DeleteExtraPhone(pid int, pp string) error {
 	}
 
 	return nil
+}
+
+func (my *personManager) GetExtraPhones(pid int) ([]printoo.ExtraPhone, error) {
+	var phones []printoo.ExtraPhone
+	sql := "select phone from person_phones where person_id = ?"
+	stm, err := my.DB.Prepare(sql)
+	if err != nil {
+		return phones, err
+	}
+	defer stm.Close()
+	rows, err := stm.Query(pid)
+	if err != nil {
+		return phones, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var phone printoo.ExtraPhone
+		err = rows.Scan(&phone)
+		if err != nil {
+			return phones, err
+		}
+		phones = append(phones, phone)
+	}
+	err = rows.Err()
+	if err != nil {
+		return phones, err
+	}
+	return phones, nil
+}
+
+func (my *personManager) AddExtraEmail(pid int, em string) error {
+	sql := "insert into person_emails (person_id, email) values(?, ?)"
+	stm, err := my.DB.Prepare(sql)
+	if err != nil {
+		return err
+	}
+	defer stm.Close()
+
+	_, err = stm.Exec(pid, em)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (my *personManager) DeleteExtraEmail(pid int, em string) error {
+	sql := "delete from person_emails where person_id=? and email=? limit 1"
+	stm, err := my.DB.Prepare(sql)
+	if err != nil {
+		return err
+	}
+	defer stm.Close()
+
+	_, err = stm.Exec(pid, em)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (my *personManager) GetExtraEmails(pid int) ([]printoo.ExtraEmail, error) {
+	var emails []printoo.ExtraEmail
+	sql := "select email from person_emails where person_id = ?"
+	stm, err := my.DB.Prepare(sql)
+	if err != nil {
+		return emails, err
+	}
+	defer stm.Close()
+	rows, err := stm.Query(pid)
+	if err != nil {
+		return emails, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var email printoo.ExtraEmail
+		err = rows.Scan(&email)
+		if err != nil {
+			return emails, err
+		}
+		emails = append(emails, email)
+	}
+	err = rows.Err()
+	if err != nil {
+		return emails, err
+	}
+	return emails, nil
 }
