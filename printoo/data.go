@@ -4,8 +4,8 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/gorilla/schema"
 	"github.com/innermond/printoo/printoo/validation"
+	"github.com/innermond/printoo/schema"
 )
 
 func NewPerson(d map[string][]string) (Person, bool, validation.Errors) {
