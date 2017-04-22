@@ -23,7 +23,7 @@ var tests = map[string][]map[string][]string{
 	},
 }
 
-func TestAction_AddPerson(t *testing.T) {
+func TestAction_AddPersonSimple(t *testing.T) {
 	do := openAction(t)
 	for n, tcs := range tests {
 		t.Run(n, func(t *testing.T) {
@@ -64,7 +64,7 @@ func TestAction_EditPerson(t *testing.T) {
 				}
 				p, err := do.AddPerson(p)
 				if err != nil {
-					t.Fatalf("insert: %v", err)
+					t.Fatalf("update: %v", err)
 				}
 				if p.Id == 0 {
 					t.Errorf("lid expected %d got %d", 0, p.Id)
@@ -227,6 +227,62 @@ func TestAction_GetExtraEmails(t *testing.T) {
 	}
 }
 
+// must be used with rndnum for phones and rndstr for emails
+var extras = []map[string][]string{
+	{"longname": {"test-1"}},
+	{"longname": {"test0"}, "phone": {"0723"}},
+	{"longname": {"test1"}, "phone": {"0723", "0745"}, "email": {"bg1@bg.ro"}},
+	{"longname": {"test2"}, "phone": {"0724"}, "email": {"bg2@bg.ro", "bg21@bg.ro"}, "is_male": {"1"}},
+	{"longname": {"test3"}, "phone": {"0725", "0752", "0722"}, "email": {"bg3@bg.ro", "bg31@bg.ro", "bg32@bg.ro"}, "is_male": {"0"}, "is_client": {"1"}},
+	{"longname": {"test4"}, "phone": {"0726", "0712", "0799", "0766"}, "email": {"bg4@bg.ro", "bg41@bg.ro", "bg42@bg.ro", "bg43@bg.ro", "bg44@bg.ro"}, "is_male": {"1"}, "is_client": {"1"}, "is_contractor": {"1"}},
+}
+
+func TestAction_AddPersonWithExtras(t *testing.T) {
+	do := openAction(t)
+	for _, d := range extras {
+		uniqs := rndstr(5)
+		uniqn := rndnum(6)
+		d["longname"][0] += uniqs
+		if dpp, ok := d["phone"]; ok {
+			for i, _ := range dpp {
+				dpp[i] += uniqn
+			}
+		}
+		if dmm, ok := d["email"]; ok {
+			for i, _ := range dmm {
+				dmm[i] += uniqs
+			}
+		}
+		t.Run(d["longname"][0], func(t *testing.T) {
+			p, xp, xm, ok, verr := printoo.NewPersonExtras(d)
+			if !ok {
+				t.Fatalf("%v", verr)
+			}
+			if len(xp) < 2 || len(xm) < 2 {
+				t.Skip("empty extras")
+			}
+			p, err := do.AddPersonWithExtras(p, xp, xm)
+			if err != nil {
+				t.Fatalf("insert: %v", err)
+			}
+			if p.Id == 0 {
+				t.Errorf("lid expected %d got %d", 0, p.Id)
+			}
+			t.Logf("lid %d", p.Id)
+			if *autodelete {
+				// delete inserted
+				t.Run(p.Longname, func(t *testing.T) {
+					err = do.DeletePerson(p)
+					if err != nil {
+						t.Errorf("delete: %v", err)
+					}
+					t.Logf("did %d", p.Id)
+				})
+			}
+		})
+	}
+}
+
 var autodelete = flag.Bool("autodelete", true, "delete testing records")
 
 func openAction(t *testing.T) action.PersonManager {
@@ -244,6 +300,16 @@ func openAction(t *testing.T) action.PersonManager {
 func rndstr(n int) string {
 	rand.Seed(time.Now().UnixNano())
 	var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+	b := make([]rune, n)
+	for i := range b {
+		b[i] = letterRunes[rand.Intn(len(letterRunes))]
+	}
+	return string(b)
+}
+
+func rndnum(n int) string {
+	rand.Seed(time.Now().UnixNano())
+	var letterRunes = []rune("0123456789")
 	b := make([]rune, n)
 	for i := range b {
 		b[i] = letterRunes[rand.Intn(len(letterRunes))]

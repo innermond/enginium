@@ -10,20 +10,20 @@ import (
 )
 
 type Person struct {
-	Id           int    `schema:"id" json:"id"`
-	Longname     string `schema:"longname" json:"longname"`
-	Phone        string `schema:"phone" json:"phone"`
-	Email        string `schema:"email" json:"email"`
-	IsMale       *bool  `schema:"is_male" json:"is_male"`
-	Address      string `schema:"address" json:"address"`
-	IsClient     bool   `schema:"is_client" json:"is_client"`
-	IsContractor bool   `schema:"is_contractor" json:"is_contractor"`
+	Id           int     `schema:"id" json:"id"`
+	Longname     string  `schema:"longname" json:"longname"`
+	Phone        *string `schema:"phone" json:"phone"`
+	Email        *string `schema:"email" json:"email"`
+	IsMale       *bool   `schema:"is_male" json:"is_male"`
+	Address      string  `schema:"address" json:"address"`
+	IsClient     bool    `schema:"is_client" json:"is_client"`
+	IsContractor bool    `schema:"is_contractor" json:"is_contractor"`
 }
 
-func NewPerson(d map[string][]string) (Person, bool, ValidationErrors) {
+func NewPerson(d map[string][]string) (Person, bool, validation.Errors) {
 	var pd Person
 	ok := true
-	ve := make(ValidationErrors)
+	ve := make(validation.Errors)
 
 	decoder := schema.NewDecoder()
 	err := decoder.Decode(&pd, d)
@@ -31,25 +31,51 @@ func NewPerson(d map[string][]string) (Person, bool, ValidationErrors) {
 		ve.Err("decode", err)
 		return pd, false, ve
 	}
-
 	ok, ve = ValidateNewPerson(pd)
 	return pd, ok, ve
 }
 
-type ValidationErrors map[string][]string
-
-func (e ValidationErrors) Err(fld string, val interface{}) {
-	qv := "%q"
-	if err, ok := val.(error); ok == true {
-		val = err.Error()
-		qv = "%v"
+func NewPersonExtras(d map[string][]string) (Person, []ExtraPhone, []ExtraEmail, bool, validation.Errors) {
+	var (
+		xp []ExtraPhone
+		xm []ExtraEmail
+	)
+	p, ok, verr := NewPerson(d)
+	if !ok {
+		return p, xp, xm, false, verr
 	}
-	e[fld] = append(e[fld], fmt.Sprintf(qv, val))
+	if pp, ok := d["phone"]; ok && len(pp) > 1 {
+		pp = pp[:len(pp)-1]
+		for _, ph := range pp {
+			if validation.IsPhone(ph, 10) {
+				xp = append(xp, ExtraPhone(ph))
+			} else {
+				verr.Err("extraphone", ph)
+			}
+		}
+	}
+	// extra emails
+	if mm, ok := d["email"]; ok && len(mm) > 1 {
+		mm = mm[:len(mm)-1]
+		for _, em := range mm {
+			if validation.IsEmail(em) {
+				xm = append(xm, ExtraEmail(em))
+			} else {
+				verr.Err("extraemail", em)
+			}
+		}
+	}
+
+	if len(verr) > 0 {
+		return p, xp, xm, false, verr
+	}
+
+	return p, xp, xm, true, verr
 }
 
-func validatePerson(p Person) (bool, ValidationErrors) {
+func validatePerson(p Person) (bool, validation.Errors) {
 	ok := true
-	ve := make(ValidationErrors)
+	ve := make(validation.Errors)
 
 	if p.Longname == "" {
 		ve.Err("longname", "required")
@@ -77,25 +103,26 @@ func validatePerson(p Person) (bool, ValidationErrors) {
 		ok = false
 	}
 
-	minPhone := 10
-	maxPhone := 15
-	phone := strings.TrimSpace(p.Phone)
-	if phone != "" {
-		l = len(phone)
-		if validation.MinMax(minPhone, maxPhone, l) ||
-			!validation.IsPhone(phone, 10) {
-			ve.Err("phone", phone)
-			ok = false
+	if p.Phone != nil {
+		minPhone := 10
+		maxPhone := 15
+		phone := strings.TrimSpace(*p.Phone)
+		if phone != "" {
+			l = len(phone)
+			if validation.MinMax(minPhone, maxPhone, l) ||
+				!validation.IsPhone(phone, 10) {
+				ve.Err("phone", phone)
+				ok = false
+			}
 		}
 	}
 
 	return ok, ve
-
 }
 
-func ValidateNewPerson(p Person) (bool, ValidationErrors) {
+func ValidateNewPerson(p Person) (bool, validation.Errors) {
 	ok := true
-	ve := make(ValidationErrors)
+	ve := make(validation.Errors)
 
 	if p.Id != 0 {
 		ve.Err("id", "not zero")
@@ -105,9 +132,9 @@ func ValidateNewPerson(p Person) (bool, ValidationErrors) {
 	return ok, ve
 }
 
-func ValidateEditPerson(p Person) (bool, ValidationErrors) {
+func ValidateEditPerson(p Person) (bool, validation.Errors) {
 	ok := true
-	ve := make(ValidationErrors)
+	ve := make(validation.Errors)
 
 	if p.Id == 0 {
 		ve.Err("id", "is zero")

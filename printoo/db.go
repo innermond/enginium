@@ -16,6 +16,10 @@ func Open(dns string) (*DB, error) {
 		return nil, err
 	}
 
+	if err = db.Ping(); err != nil {
+		return nil, err
+	}
+
 	return &DB{db}, nil
 }
 

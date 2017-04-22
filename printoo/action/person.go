@@ -1,11 +1,11 @@
 package action
 
-import (
-	"github.com/innermond/printoo/printoo"
-)
+import "github.com/innermond/printoo/printoo"
 
 type PersonManager interface {
 	AddPerson(printoo.Person) (printoo.Person, error)
+	AddPersonWithExtras(printoo.Person, []printoo.ExtraPhone, []printoo.ExtraEmail) (printoo.Person, error)
+
 	EditPerson(printoo.Person) error
 	DeletePerson(printoo.Person) error
 	GetPerson(int) (printoo.Person, error)
@@ -51,6 +51,64 @@ func (my *personManager) AddPerson(p printoo.Person) (printoo.Person, error) {
 		return p, err
 	}
 	p.Id = int(lid)
+	return p, nil
+}
+
+func (my *personManager) AddPersonWithExtras(p printoo.Person, pp []printoo.ExtraPhone, mm []printoo.ExtraEmail) (printoo.Person, error) {
+	tx, err := my.DB.Begin()
+	if err != nil {
+		return p, err
+	}
+	sql := "insert into persons (longname, phone, email, is_male, address, is_client, is_contractor) values(?, ?, ?, ?, ?, ? ,?)"
+	stmp, err := tx.Prepare(sql)
+	if err != nil {
+		tx.Rollback()
+		return p, err
+	}
+	defer stmp.Close()
+
+	res, err := stmp.Exec(p.Longname, p.Phone, p.Email, p.IsMale, p.Address, p.IsClient, p.IsContractor)
+	if err != nil {
+		tx.Rollback()
+		return p, err
+	}
+	lid, err := res.LastInsertId()
+	if err != nil {
+		tx.Rollback()
+		return p, err
+	}
+	p.Id = int(lid)
+
+	sql = "insert into person_phones (person_id, phone) values(?, ?)"
+	stmph, err := tx.Prepare(sql)
+	if err != nil {
+		tx.Rollback()
+		return p, err
+	}
+	defer stmph.Close()
+	for _, ph := range pp {
+		_, err = stmph.Exec(p.Id, string(ph))
+		if err != nil {
+			tx.Rollback()
+			return p, err
+		}
+	}
+
+	sql = "insert into person_emails (person_id, email) values(?, ?)"
+	stmpe, err := tx.Prepare(sql)
+	if err != nil {
+		tx.Rollback()
+		return p, err
+	}
+	defer stmpe.Close()
+	for _, em := range mm {
+		_, err = stmpe.Exec(p.Id, string(em))
+		if err != nil {
+			tx.Rollback()
+			return p, err
+		}
+	}
+	tx.Commit()
 	return p, nil
 }
 

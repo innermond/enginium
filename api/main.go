@@ -8,10 +8,8 @@ import (
 func main() {
 
 	api := NewApi()
-	defer api.Clean()
+	defer api.Close()
 
-	http.Handle("/user", api.User)
-	http.Handle("/token", api.Token)
 	http.Handle("/person", api.Person)
 
 	certPath := "server.pem"

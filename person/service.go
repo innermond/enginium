@@ -1,58 +1,27 @@
 package person
 
 import (
-	"errors"
-	"log"
-
-	"github.com/innermond/printoo/models"
-	"github.com/innermond/printoo/services"
+	"github.com/innermond/printoo/printoo"
+	"github.com/innermond/printoo/printoo/action"
 )
 
-type Service interface {
-	Read(int) (models.PersonModel, error)
-	CreatePerson(Data) (Data, error)
+type Service struct {
+	m action.PersonManager
 }
 
-type ErrDataValid error
-type ErrCreate error
-
-type service struct {
-	model models.PersonModel
+func NewService(m action.PersonManager) *Service {
+	return &Service{m}
 }
 
-func NewService(m models.PersonModel) Service {
-	return &service{m}
-}
-
-func (s *service) Read(id int) (models.PersonModel, error) {
-	Person := s.model
-	err := Person.Get(id)
+func (s *Service) AddPerson(d map[string][]string) (printoo.Person, error) {
+	p, ok, verr := printoo.NewPerson(d)
+	if !ok {
+		return p, verr
+	}
+	p, err := s.m.AddPerson(p)
 	if err != nil {
-		return nil, err
-	}
-	return Person, nil
-}
-
-func (s *service) CreatePerson(pd Data) (Data, error) {
-	if ok := pd.Validate(); ok == false {
-		log.Println(pd.Errors)
-		return pd, ErrDataValid(errors.New("invalid data"))
+		return p, err
 	}
 
-	var (
-		err error
-		pid int
-	)
-	s.model = pd.toPerson()
-	p := s.model.Me()
-	pid, err = s.model.CreatePerson()
-	if err != nil {
-		log.Println(err)
-		return pd, ErrCreate(errors.New("cannot create"))
-	}
-
-	out := Data{*p, services.Errors(nil)}
-	out.Id = pid
-
-	return out, nil
+	return p, nil
 }

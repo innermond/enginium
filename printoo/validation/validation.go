@@ -1,6 +1,7 @@
 package validation
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
 )
@@ -28,4 +29,19 @@ func MinMax(min, max, val int, eq ...bool) bool {
 
 func IsEmail(e string) bool {
 	return strings.LastIndex(e, "@") != -1
+}
+
+type Errors map[string][]string
+
+func (e Errors) Err(fld string, val interface{}) {
+	qv := "%q"
+	if err, ok := val.(error); ok == true {
+		val = err.Error()
+		qv = "%v"
+	}
+	e[fld] = append(e[fld], fmt.Sprintf(qv, val))
+}
+
+func (e Errors) Error() string {
+	return fmt.Sprintf("validation errors")
 }
