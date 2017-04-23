@@ -1,0 +1,6 @@
+{
+"env":".env",
+"serverPem":"./../../var/server.pem",
+"serverKey":"./../../var/server.key",
+"serverAddr":"localhost:3000"
+}

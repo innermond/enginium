@@ -1,4 +1,4 @@
-package main
+package api
 
 import (
 	"fmt"
@@ -9,19 +9,7 @@ import (
 	"github.com/innermond/printoo/person"
 	"github.com/innermond/printoo/printoo"
 	"github.com/innermond/printoo/printoo/action"
-	"github.com/joho/godotenv"
 )
-
-func fatal(err error) {
-	if err != nil {
-		log.Fatal(err)
-	}
-}
-func init() {
-	// load config values
-	err := godotenv.Load()
-	fatal(err)
-}
 
 type api struct {
 	Person http.Handler
@@ -35,7 +23,9 @@ func NewApi() *api {
 	dns := fmt.Sprintf("root:%s@tcp(:3306)/%s", dbpwd, dbname)
 	// init api
 	db, err := printoo.Open(dns)
-	fatal(err)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	do := action.NewHave(db)
 	if do == nil {
